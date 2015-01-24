@@ -3,322 +3,20 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-	<script type="text/javascript" src="http://code.jquery.com/jquery.min.js"></script>
-	<script type="text/javascript" src="http://getbootstrap.com/dist/js/bootstrap.js"></script>
-	<link type="text/css" rel="stylesheet" href="http://getbootstrap.com/dist/css/bootstrap.css"/>
-	<link type="text/css" rel="stylesheet" href="./stylesheet.css"/>
-	<script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js"></script>
+	
+	<!-- JavaScript -->
+	<script type="text/javascript" src="./js/jquery1.11.1.js"></script>
+	<script type="text/javascript" src="./js/bootstrap.js"></script>
 	<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+	<script type="text/javascript" src="./js/script.js"></script>
+
+	<!-- Stylesheets -->
+	<link type="text/css" rel="stylesheet" href="./css/bootstrap.min.css"/>
+	<link type="text/css" rel="stylesheet" href="./css/bootstrap.theme.css"/>
+	<link type="text/css" rel="stylesheet" href="./css/stylesheet.css"/>
+
 	<title>Parking Facility(SPARQL)</title>
 </head>
-<script>
-/* ParkingFacility(SPARQL) javascript file */
-
-var labels=[];		//駐車場情報の変数名格納用変数
-var dataObj;
-var contactObj;
-var map;
-	
-$(document).ready(function() {
-	 // code here
-	  map = new google.maps.Map(document.getElementById("map_canvas"),mapOptions); 
-    
-  	//===============
-	var menuElement = document.getElementById('warp_br');
-
-	menuElement.addEventListener('touchstart',function(event){
-		$('#menuButton').css("background","#000000");
-	},false);
-
-	menuElement.addEventListener('touchend',function(event){
-		$('#menuButton').css("background","#d12525");
-	},false);
-	//===============
-	
-	debug(map);
-});
-    
-var mapOptions = {
-  center: new google.maps.LatLng(35.7647277,137.2067243),
-  zoom: 8,
-  mapTypeId: google.maps.MapTypeId.ROADMAP
-};
-
-/* 駐車場のリストを取得するクエリ */
-var parkingQuery =  "PREFIX jrrk: <http://purl.org/jrrk#>\n"
-+"PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
-+"PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-+"PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-+"PREFIX schema: <http://schema.org/>\n"
-+"select distinct ?contact ?lat ?long ?category ?capacity ?price ?address ?label ?image ?monthlyCharge where {\n"
-+"    graph <http://odp.jig.jp/rdf/jp/fukui/sabae/201> { \n"
-+"        OPTIONAL{ ?s jrrk:contact ?contact }.\n"
-+"        OPTIONAL{ ?s <http://www.w3.org/2003/01/geo/wgs84_pos#lat> ?lat }.\n"
-+"        OPTIONAL{ ?s <http://www.w3.org/2003/01/geo/wgs84_pos#long> ?long }.\n"
-+"        OPTIONAL{ ?s jrrk:category ?category }.\n"
-+"        OPTIONAL{ ?s jrrk:capacity ?capacity }.\n"
-+"        OPTIONAL{ ?s schema:price ?price }.\n"
-+"        OPTIONAL{ ?s rdfs:label ?label }.\n"
-+"        OPTIONAL{ ?s jrrk:address ?address }.\n"
-+"        OPTIONAL{ ?s schema:image ?image }.\n"
-+"        OPTIONAL{ ?s jrrk:monthlyCharge ?monthlyCharge }.\n"
-+"    }\n"
-+"}\n";
-
-/* 連絡先のリストを取得するクエリ */
-var contactQuery =  "PREFIX jrrk: <http://purl.org/jrrk#>\n"
-+"PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
-+"PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-+"PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
-+"PREFIX schema: <http://schema.org/>\n"
-+"select distinct ?node ?tel ?label where {\n"
-+"    graph <http://odp.jig.jp/rdf/jp/fukui/sabae/201> { \n"
-+"       ?node <http://schema.org/telephone> ?o;\n"
-+"       rdfs:label ?label;\n"
-+"       schema:telephone ?tel;\n"
-+"    }\n"
-+"}";
-  
-function debug (map){
-  //alert(query);
-  var contactsUrl = "http://sparql.odp.jig.jp/api/v1/sparql?query=" + encodeURIComponent(contactQuery) + "&output=json";
-  var url = "http://sparql.odp.jig.jp/api/v1/sparql?query=" + encodeURIComponent(parkingQuery) + "&output=json";
-  
-  //連絡先情報を先に取得
-  $.ajax({
-	  type: 'GET',
-	  url: contactsUrl,
-	  dataType: 'json',
-	  success: function(json){
-	    /* データが取得できた場合の処理を開始 */
-	  	contactObj = json;  
-	  }
-  });
-  
-  
-  $.ajax({
-	  type: 'GET',
-	  url: url,
-	  dataType: 'json',
-	  success: function(json){
-	    /* データが取得できた場合の処理を開始 */
-	    console.log(json);							//DEBUG
-	    for(var i=0; i<json.head.vars.length; i++){
-	    	labels.push(json.head.vars[i]);
-	    	console.log(labels[i]);
-	    }
-	    
-	    dataObj = json.results;
-	    
-	    for(var j=0; j<dataObj.bindings.length; j++){
-	    	console.log(j);	
-	    	var marker = makeMarker(map,dataObj.bindings[j].lat.value,dataObj.bindings[j].long.value,null);
-	    	marker.setTitle = (j.toString()+"番目");
-	    	attachSecretMessage(marker, j,dataObj.bindings[j]);
-	    }
-	  }
-  });
-  
-  google.maps.event.addListener(map, 'click', function(){
-  	closeMenu();
-  });
-  
-	  
-}
-
-var makeMarker = function(map, lat, long, data) {
-	var pos = new google.maps.LatLng(lat, long);
-	return new google.maps.Marker({
-		position: pos,
-		map: map,
-		draggable: false,
-	});
-};
-
-
-function attachSecretMessage(marker, number,data) {
-  //var message = ["This","is","the","secret","message","This","is","the","secret","message"];
-  google.maps.event.addListener(marker, 'click', function() {
-    var pos = new google.maps.LatLng(data.lat.value, data.long.value);
-    map.panTo(pos);
-    openMenu();
-    $('#parkingLabel').text(data.label.value);
-    $('#modal-Parking-Label').text(data.label.value);
-    $('#modal-Parking-Price').text(data.price.value);
-    $('#modal-Parking-Capacity').text(data.capacity.value);
-    $('#modal-Parking-Address').text(data.address.value);
-    $('#modal-Parking-Image').attr('src', data.image.value);
-    if(!data.monthlyCharge){
-    	//データがない場合
-    	$('#modal-Parking-MonthlyCharge').text("--------");
-    }else{
-    	$('#modal-Parking-MonthlyCharge').text(data.monthlyCharge.value);
-    }
-    console.log(data.contact.value);
-    $('#modal-Parking-Contact').text(getContact(data.contact.value));
-  });
-}
-
-function getContact(node){
-	var results = contactObj.results.bindings;
-	console.log(results);
-	for(var i=0; i<results.length;i++){
-		console.log(results[i].node.value);
-		if(results[i].node.value === node){
-			
-			return (results[i].label.value)+" "+(results[i].tel.value);
-		}
-	}	
-	console.log("NONONONO");
-	return "--------";
-}
-
-
-
-function openMenu(){
-	$('#app-panel').css("height","20%");
-	$('#app-panel').css("visibility","visible");
-	
-  	$("#map_canvas").animate({ 
-    	height: "80%"
-  	}, 400 );
-  	
-  	$('#menuButton').css("visibility","visible");
-  	$('#menuButton').text("CLOSE");
-}
-
-function closeMenu(){
-	$('#app-panel').css("height","0%");
-	$('#app-panel').css("visibility","hidden");
-
-  	$("#map_canvas").animate({ 
-    	height: "100%"
-  	}, 400 );
-  	$('#menuButton').css("visibility","hidden"); 
-  	
-  	$('#menuButton').text("MENU");
-}
-
-
-function button(){
-	if($('#menuButton').text()==="MENU"){
-		$('#app-panel').css("height","20%");	
-		$('#app-panel').css("visibility","visible");  
-	  	$("#map_canvas").animate({ 
-	    	height: "80%"
-	  	}, 400 );
-	  	$('#menuButton').css("visibility","visible");
-	  	$('#menuButton').text("CLOSE");
-	}else{
-		$('#app-panel').css("height","0%");
-	 	$('#app-panel').css("visibility","hidden");
-	  	$("#map_canvas").animate({ 
-	    	height: "100%"
-	  	}, 400 );
-	  	$('#menuButton').css("visibility","hidden"); 
-	  	
-	  	$('#menuButton').text("MENU");
-	}
-}
-
-
-
-</script>
-<style>
-
-html { 
-	height: 100%;
-	width: 100%;
-}
-
-body { 
-	height: 100%;
-	width: 100%;
-	padding-top: 60px;
-}
-#map_canvas {
-	 height: 100%;
-	 width: 100%;
-}
-
-#app-panel{
-	height: 0%;
-	width: 100%;
-	visibility:hidden;
-}
-
-.app-panel-window{
-	float: left;
-	width: 100%;
-	height: 100%;
-	margin-left:-120px;
-	background: #F6F6F6;
-}
-
-.app-panel-button{
-  	float: right; /*leftでも可*/
-  	width: 120px;
-  	height: 100%;
-	background: #F6F6F6;
-}
-
-.app-panel-buttons{
-  margin-left: 120px;
-  height: 100%;
-  position: relative;
-}
-
-
-.navbar-inner{
-  background-image: url('./navbar-bg.png');
-  background-repeat: repeat-x;
-}
-
-.modal-info-p{
-	padding-left:5%;
-}
-
-#warp_br{
-    text-align:center;
-    font:14px;
-    color:#fff;
-}
-
-#warp_br a{
-    display:block;
-    text-decoration:none;
-    color:#fff;
-    float:left;
-    list-style:none;
-    width:80px;
-    height:80px;
-    line-height:80px;
-    border-radius:50%;
-    -moz-border-radius:50%;
- 	-webkit-border-radius:50%;
-    margin:0px 15px 0px 15px;
-    background : #d12525;
-    
-    position: fixed;
- 	bottom: 15px;
- 	right: 0px;
- 	z-index: 0;
- 	
-}
-
-#menuButton{
-	visibility:hidden;
-}
-
-#modal-Parking-Image{
-		height:50%;
-		width:50%;
-		margin-left:25%;
-		margin-right:25%;
-		margin-bottom:30px;
-
-}
-</style>
 <body>
     
     <!-- NAVIGATION BAR -->
@@ -338,21 +36,19 @@ body {
               	<li><a href="#about-modal" data-toggle="modal">About</a></li>
                 <li><a href="https://github.com/Pittan/SPARQL-ParkingFacility" target="_blank"> GitHub</a></li>
               </ul>
-
-
             </div>
           </div>
         </div>
     </div>  
     <!-- NAVIGATION BAR END -->
     
-    <!-- CONTENT -->
+    <!-- MAP -->
     <div id="map_canvas"></div>
     
+    <!-- DETAIL -->
     <div id="app-panel">
     		<div class="app-panel-window">
     			<div class="app-panel-buttons">
-    				
     					<div style="position: absolute;bottom:50%;left:0%;right:0%;height:50%;">
 	    					<div class="container">
 								<h4 id="parkingLabel">ピンを選択</h4>  	
@@ -363,69 +59,64 @@ body {
 								<a href="#info-modal" data-toggle="modal">タップで詳細を表示</a>
 							</div>
 						</div>
-					
 			    </div>
 			</div>
-			<div class="app-panel-button">
-			
-			</div>
-	  
+			<div class="app-panel-button"></div>
 	</div>
 	
 	<div id="warp_br">
 	    <a href="#" onClick="button()" id="menuButton">MENU</a>
 	</div>
-    
-
-    
-<!-- PARKING FACILITY DETAIL MODAL -->
-<div id="info-modal" class="modal fade"> 
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="modal-title" id="modal-Parking-Label">タイトル</h4>
-      </div>
-      <div class="modal-body">
-        <img class="img-responsive" id="modal-Parking-Image" src="http://">
-        <h4>住所</h4>
-        <p id="modal-Parking-Address" class="modal-info-p">--------</p>
-        <h4>駐車台数</h4>
-        <p id="modal-Parking-Capacity" class="modal-info-p">--------</p>
-        <h4>駐車料金</h4>
-        <p id="modal-Parking-Price" class="modal-info-p">--------</p>
-        <h4>月額料金</h4>
-        <p id="modal-Parking-MonthlyCharge" class="modal-info-p">--------</p>
-        <h4>管理</h4>
-        <p id="modal-Parking-Contact" class="modal-info-p">--------</p>
         
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">閉じる</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
-</div>
-
-<!-- ABOUT MODAL -->
-<div id="about-modal" class="modal fade"> 
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="modal-title">ABOUT</h4>
-      </div>
-      <div class="modal-body text-center">
-      
-      	APP: <a href=http://creativecommons.org/licenses/by/4.0/ target=_blank>CC BY</a> / pittan<br>
-		SPARQL: <a href=http://sparql.odp.jig.jp/ target=_blank>odp</a><br>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-default" data-dismiss="modal">CLOSE</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
-</div>
+	<!-- PARKING FACILITY DETAIL MODAL -->
+	<div id="info-modal" class="modal fade"> 
+	  <div class="modal-dialog">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+	        <h4 class="modal-title" id="modal-Parking-Label">タイトル</h4>
+	      </div>
+	      <div class="modal-body">
+	        <img class="img-responsive" id="modal-Parking-Image" src="http://">
+	        <h4>住所</h4>
+	        <p id="modal-Parking-Address" class="modal-info-p">--------</p>
+	        <h4>駐車台数</h4>
+	        <p id="modal-Parking-Capacity" class="modal-info-p">--------</p>
+	        <h4>駐車料金</h4>
+	        <p id="modal-Parking-Price" class="modal-info-p">--------</p>
+	        <h4>月額料金</h4>
+	        <p id="modal-Parking-MonthlyCharge" class="modal-info-p">--------</p>
+	        <h4>管理</h4>
+	        <p id="modal-Parking-Contact" class="modal-info-p">--------</p>
+	        
+	      </div>
+	      <div class="modal-footer">
+	        <button type="button" class="btn btn-default" data-dismiss="modal">閉じる</button>
+	      </div>
+	    </div><!-- /.modal-content -->
+	  </div><!-- /.modal-dialog -->
+	</div>
+	
+	<!-- ABOUT MODAL -->
+	<div id="about-modal" class="modal fade"> 
+	  <div class="modal-dialog">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+	        <h4 class="modal-title">ABOUT</h4>
+	      </div>
+	      <div class="modal-body text-center">
+	        <p>福井県鯖江市の駐車場データを閲覧できるWebアプリケーション。<br/>
+	        	jig.jpのOpenDataPlatform(ODP)を使用しています。</p>
+	      	<p>APP: <a href=http://creativecommons.org/licenses/by/4.0/ target=_blank>CC BY</a> / pittan</p>
+			<p>SPARQL: <a href=http://sparql.odp.jig.jp/ target=_blank>odp</a></p>
+	      </div>
+	      <div class="modal-footer">
+	        <button type="button" class="btn btn-default" data-dismiss="modal">CLOSE</button>
+	      </div>
+	    </div><!-- /.modal-content -->
+	  </div><!-- /.modal-dialog -->
+	</div>
 
 </body>
 
