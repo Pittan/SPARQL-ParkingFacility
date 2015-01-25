@@ -93,6 +93,8 @@ function loadMap (map){
 	    	marker.setTitle = (j.toString()+"番目");
 	    	attachAction(marker, j,dataObj.bindings[j]);
 	    }
+	    
+	     getNearestPoint()
 	  }
   });
   
@@ -148,7 +150,6 @@ function getContact(node){
 			return (results[i].label.value)+" "+(results[i].tel.value);
 		}
 	}	
-	console.log("NONONONO");
 	return "--------";
 }
 
@@ -185,4 +186,86 @@ function closeMenu(){
   	$('#menuButton').css("visibility","hidden"); 
   	
   	$('#menuButton').text("MENU");
+}
+
+function getNearestPoint(){
+	if (navigator.geolocation) {
+	  //Geolocation APIを利用できる環境向けの処理
+	  //ユーザーの現在の位置情報を取得
+	  navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+	} else {
+	  //Geolocation APIを利用できない環境向けの処理
+		var pos = new google.maps.LatLng(35.9604115,136.1911316);
+	    map.panTo(pos);
+	}
+}
+
+
+/** 二点間の座標の距離を求めます(距離の単位はなし)
+* 	現在位置と地点配列を比較して、どれが一番近いかを算出します。
+*/
+function calculateDistance (lat1,long1,lat2,long2) {
+　　var a, b, d;
+　　a = lat1 - lat2;
+　　b = long1 - long2;
+　　d = Math.sqrt(Math.pow(a,2) + Math.pow(b,2));
+　　return d;
+};
+
+
+/***** ユーザーの現在の位置情報を取得 *****/
+function successCallback(position) {
+  var currentLat = position.coords.latitude;
+  var currentLong = position.coords.longitude;
+  var nearestPoint;
+  var tempDistance = 999.99999;
+  
+  for(var j=0; j<dataObj.bindings.length; j++){	
+  	var distance = calculateDistance(currentLat,currentLong,dataObj.bindings[j].lat.value,dataObj.bindings[j].long.value);
+  	console.log(j+"番目の距離:"+distance+"　　　名称:"+dataObj.bindings[j].label.value);
+  	if(distance<tempDistance){
+  		tempDistance = distance;
+  		nearestPoint = j;
+  	}
+  }
+  
+  showInfo(dataObj.bindings[nearestPoint]);
+}
+
+/***** 位置情報が取得できない場合 *****/
+function errorCallback(error) {
+  var err_msg = "";
+  switch(error.code)
+  {
+    case 1:
+      err_msg = "位置情報の利用が許可されていません";
+      break;
+    case 2:
+      err_msg = "デバイスの位置が判定できません";
+      break;
+    case 3:
+      err_msg = "タイムアウトしました";
+      break;
+  }
+  alert(err_msg);
+}
+
+function showInfo(data){
+  var pos = new google.maps.LatLng(data.lat.value, data.long.value);
+  map.panTo(pos);
+  openMenu();
+  $('#parkingLabel').text(data.label.value);
+  $('#modal-Parking-Label').text(data.label.value);
+  $('#modal-Parking-Price').text(data.price.value);
+  $('#modal-Parking-Capacity').text(data.capacity.value);
+  $('#modal-Parking-Address').text(data.address.value);
+  $('#modal-Parking-Image').attr('src', data.image.value);
+  if(!data.monthlyCharge){
+  	//データがない場合
+  	$('#modal-Parking-MonthlyCharge').text("--------");
+  }else{
+  	$('#modal-Parking-MonthlyCharge').text(data.monthlyCharge.value);
+  }
+  console.log(data.contact.value);
+  $('#modal-Parking-Contact').text(getContact(data.contact.value));
 }
