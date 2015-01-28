@@ -108,11 +108,20 @@ function loadMap (map){
 
 /* マーカーの作成 */
 var makeMarker = function(map, lat, long, data) {
+	var image = new google.maps.MarkerImage('park-icon.png',
+		// This marker is 20 pixels wide by 32 pixels tall.
+		new google.maps.Size(64, 64),
+		// The origin for this image is 0,0.
+		new google.maps.Point(0, 0),
+		// The anchor for this image is the base of the flagpole at 0,32.
+		new google.maps.Point(32, 50)
+	);
 	var pos = new google.maps.LatLng(lat, long);
 	return new google.maps.Marker({
 		position: pos,
 		map: map,
 		draggable: false,
+		icon: "park-icon.png",
 	});
 };
 
