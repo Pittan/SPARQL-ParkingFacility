@@ -35,7 +35,7 @@ $(document).ready(function() {
 	+"PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
 	+"PREFIX schema: <http://schema.org/>\n"
 	+"select distinct ?contact ?lat ?long ?category ?capacity ?price ?address ?label ?image ?monthlyCharge where {\n"
-	+"    graph <http://odp.jig.jp/rdf/jp/fukui/sabae/201> { \n"
+//	+"    graph <http://odp.jig.jp/rdf/jp/fukui/sabae/201> { \n"
 	+"        OPTIONAL{ ?s jrrk:contact ?contact }.\n"
 	+"        OPTIONAL{ ?s <http://www.w3.org/2003/01/geo/wgs84_pos#lat> ?lat }.\n"
 	+"        OPTIONAL{ ?s <http://www.w3.org/2003/01/geo/wgs84_pos#long> ?long }.\n"
@@ -46,7 +46,7 @@ $(document).ready(function() {
 	+"        OPTIONAL{ ?s jrrk:address ?address }.\n"
 	+"        OPTIONAL{ ?s schema:image ?image }.\n"
 	+"        OPTIONAL{ ?s jrrk:monthlyCharge ?monthlyCharge }.\n"
-	+"    }\n"
+//	+"    }\n"
 	+"}\n";
 	
 	/* 連絡先のリストを取得するクエリ */
